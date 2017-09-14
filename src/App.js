@@ -4,7 +4,6 @@ import './App.css';
 var request = require('request');
 var rp = require('request-promise');
 
-
 class App extends Component {
   render() {
     return (
@@ -33,7 +32,8 @@ class Body extends Component {
       duo: [],
       squad: [],
       search: false,
-      first: true
+      first: true,
+      loading: false
     };
 
     this.handleChange = this.handleChange.bind(this);
@@ -43,19 +43,24 @@ class Body extends Component {
   renderStats(plNum) {
     //console.log(this.state.stats)
     var tables = [];
-    for (var i = plNum - 3; i < plNum; i++) {
-      tables.push(<Stats key={i} value={this.state.stats[i]} />)
+    for (var i = 0; i  < plNum; i++) {
+      if (this.state.stats[i].Region == 'agg') {
+        console.log(this.state.stats[i].Region);
+        tables.push(<Stats key={i} value={this.state.stats[i]} />)
+      }
     }
     return tables;
   }
 
   handleChange(event) {
-    this.setState({username: event.target.value});
+    console.log("handleChange");
+    this.setState({temp: event.target.value});
   }
 
   handleSubmit(event) {
     this.setState({submitted: true});
     this.setState({first: false});
+    this.setState({username: this.state.temp})
     event.preventDefault();
   }
 
@@ -63,7 +68,12 @@ class Body extends Component {
     this.setState({submitted: false});
   }
 
+  changeLoading() {
+    this.setState({loading: !this.state.loading});
+  }
+
   setPlayerInfo(data) {
+    console.log(JSON.parse(data));
     this.setState({ data });
     let avatar = JSON.parse(data).Avatar;
     this.setState({ avatar })
@@ -71,19 +81,22 @@ class Body extends Component {
     this.setState({ username })
     let stats = JSON.parse(data).Stats;
     this.setState({ stats });
+    this.changeLoading();
   }
 
   render() {
     console.log("Rendering... " + "username: " + this.state.username + " submitted: " + this.state.submitted)
+    console.log("loading:" +this.state.loading)
     if(!this.state.first) {
       if(this.state.submitted) {
         var options = {
-            url: 'https://pubgtracker.com/api/profile/pc/' + this.state.username,
+            url: 'https://pubgtracker.com/api/profile/pc/' + this.state.temp,
             headers: {
+              'Access-Control-Allow-Origin': '*',
               'TRN-Api-Key': 'f4afb664-05f8-40ea-b3cd-e9810c2c68e2'
             }
         };
-
+        this.changeLoading();
         rp(options)
           .then(data => {
             this.setPlayerInfo(data);
@@ -93,34 +106,48 @@ class Body extends Component {
       }
 
       try {
-        return (
-          <div className="Body">
-            <form className="" onSubmit={this.handleSubmit}>
-              <div className="form-group contanier">
-                <label htmlFor="usernameInput">Username:</label>
-                <input type="text" className="form-control" id="usernameInput" value={this.state.temp} onChange={this.handleChange} placeholder="Enter username" />
-                <button className="btn btn-default" type="submit" id="usernameSubmit" value="Search">Search</button>
+        if (this.state.loading) {
+          return(
+            <div className="Body">
+              <form className="form-inline" onSubmit={this.handleSubmit}>
+                <div className="form-group">
+                  <input type="text" className="form-control" id="usernameInput" value={this.state.temp} onChange={this.handleChange} placeholder="Enter username" />
+                  <button className="btn btn-default" type="submit" id="usernameSubmit" value="Search" onClick={this.handleSubmit}>Search</button>
+                </div>
+              </form>
+              <div className="Body-header">
+                <h2>Loading <i className="fa fa-circle-o-notch fa-spin"></i></h2>
               </div>
-            </form>
-            <div className="Body-header">
-              <h2><img src={this.state.avatar}/> {this.state.username}</h2>
             </div>
-            <div className="Stats-tables">
-              {this.renderStats(this.state.stats.length)}
+          )
+        } else {
+          return (
+            <div className="Body">
+              <form className="form-inline" onSubmit={this.handleSubmit}>
+                <div className="form-group">
+                  <input type="text" className="form-control" id="usernameInput" value={this.state.temp} onChange={this.handleChange} placeholder="Enter username" />
+                  <button className="btn btn-default" type="submit" id="usernameSubmit" value="Search" onClick={this.handleSubmit}>Search</button>
+                </div>
+              </form>
+              <div className="Body-header">
+                <h2><img src={this.state.avatar}/> {this.state.username}</h2>
+              </div>
+              <div className="Stats-tables">
+                {this.renderStats(this.state.stats.length)}
+              </div>
             </div>
-          </div>
-        )
+          )
+        }
       }
       catch (e) {
-        //console.log(e);
+        console.log(e);
       }
     }
     return (
-      <form className="" onSubmit={this.handleSubmit}>
-        <div className="form-group contanier">
-          <label htmlFor="usernameInput">Username:</label>
+      <form className="form-inline" onSubmit={this.handleSubmit}>
+        <div className="form-group">
           <input type="text" className="form-control" id="usernameInput" value={this.state.temp} onChange={this.handleChange} placeholder="Enter username" />
-          <button className="btn btn-default" type="submit" id="usernameSubmit" value="Search">Search</button>
+          <button className="btn btn-default" type="submit" id="usernameSubmit" value="Search" onClick={this.handleSubmit}>Search</button>
         </div>
       </form>
     )
@@ -132,7 +159,7 @@ function Stats(props) {
   try {
     return (
       <div className="Stats-container">
-        <h1><span className="badge badge-secondary">{props.value.Match}</span></h1>
+        <p><span className="badge badge-secondary">{props.value.Match}</span> {props.value.Season}</p>
         <table className="table table-striped table-bordered">
           <thead>
             <tr>
@@ -172,6 +199,26 @@ function Stats(props) {
               <td>{stats[9].value}</td>
               <td>{stats[10].value}</td>
               <td>{stats[11].value}</td>
+            </tr>
+          </tbody>
+          <thead>
+            <tr>
+              <th>{stats[12].label}</th>
+              <th>{stats[13].label}</th>
+              <th>{stats[14].label}</th>
+              <th>{stats[15].label}</th>
+              <th>{stats[16].label}</th>
+              <th>{stats[17].label}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>{stats[12].value}</td>
+              <td>{stats[13].value}</td>
+              <td>{stats[14].value}</td>
+              <td>{stats[15].value}</td>
+              <td>{stats[16].value}</td>
+              <td>{stats[17].value}</td>
             </tr>
           </tbody>
         </table>
